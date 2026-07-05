@@ -1,23 +1,16 @@
-# Virtual Environment
 .venv/
 
-# Python
 __pycache__/
 *.pyc
 *.pyo
 
-# Environment
 .env
 
-# Uploaded files
 uploads/*
 reports/*
 
-# Database
 database/*.db
 
-# VS Code
 .vscode/
 
-# macOS
 .DS_Store
