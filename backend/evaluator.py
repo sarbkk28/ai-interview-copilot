@@ -17,13 +17,15 @@ def evaluate_answer(
     answer: str
 ) -> dict:
     """
-    Evaluate a candidate's interview answer.
+    Evaluate a candidate's interview answer
+    across multiple interview dimensions.
     """
 
     prompt = f"""
 You are a senior technical interviewer.
 
-Evaluate the candidate's interview answer fairly.
+Evaluate the candidate's interview answer fairly
+and consistently.
 
 Interview Question:
 
@@ -33,19 +35,37 @@ Candidate Answer:
 
 {answer}
 
-Evaluate the answer based on:
+Evaluate the candidate across these dimensions:
 
-1. Technical correctness
-2. Relevance
-3. Depth of explanation
-4. Communication clarity
+1. Technical Accuracy
+   - correctness of technical concepts
+   - correct terminology
+   - absence of factual errors
+
+2. Communication
+   - clarity
+   - structure
+   - ability to explain concepts simply
+
+3. Depth
+   - detailed understanding
+   - trade-offs
+   - reasoning
+   - practical knowledge
+
+4. Relevance
+   - how directly the answer addresses the question
 
 Return ONLY valid JSON.
 
 Use exactly this structure:
 
 {{
-    "score": 8.5,
+    "overall_score": 8.2,
+    "technical_accuracy": 8.5,
+    "communication": 7.5,
+    "depth": 7.0,
+    "relevance": 9.0,
     "strengths": [
         "Strength one",
         "Strength two"
@@ -54,28 +74,34 @@ Use exactly this structure:
         "Weakness one",
         "Weakness two"
     ],
+    "topics_to_improve": [
+        "Topic one",
+        "Topic two"
+    ],
     "improved_answer": "Write an improved interview answer."
 }}
 
-Scoring rules:
+All scores must be numbers between 0 and 10.
+
+Scoring guide:
 
 0-3:
-Incorrect or extremely weak answer.
+Poor or incorrect.
 
 4-5:
-Basic understanding but major concepts are missing.
+Basic understanding with major gaps.
 
 6-7:
-Good answer but lacks depth.
+Good but lacks depth.
 
 8-9:
-Strong and technically accurate answer.
+Strong interview answer.
 
 10:
 Exceptional expert-level answer.
 
 Return JSON only.
-Do not include markdown.
+Do not use markdown.
 Do not include additional explanation.
 """
 
@@ -87,9 +113,32 @@ Do not include additional explanation.
                 "content": prompt
             }
         ],
-        temperature=0.3
+        temperature=0.2
     )
 
     result = response.choices[0].message.content
 
-    return json.loads(result)
+    feedback = json.loads(result)
+
+    required_keys = {
+        "overall_score",
+        "technical_accuracy",
+        "communication",
+        "depth",
+        "relevance",
+        "strengths",
+        "weaknesses",
+        "topics_to_improve",
+        "improved_answer"
+    }
+
+    missing_keys = (
+        required_keys - feedback.keys()
+    )
+
+    if missing_keys:
+        raise ValueError(
+            f"Missing evaluation fields: {missing_keys}"
+        )
+
+    return feedback
