@@ -1,5 +1,9 @@
-import streamlit as st
 import requests
+import streamlit as st
+
+
+API_URL = "http://127.0.0.1:8000"
+
 
 st.set_page_config(
     page_title="AI Interview Copilot",
@@ -7,104 +11,251 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# ---------------- SESSION STATE ----------------
+
+if "questions" not in st.session_state:
+    st.session_state.questions = []
+
+if "current_question" not in st.session_state:
+    st.session_state.current_question = 0
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+if "feedback" not in st.session_state:
+    st.session_state.feedback = None
+
+if "interview_started" not in st.session_state:
+    st.session_state.interview_started = False
+
+
+# ---------------- HEADER ----------------
+
 st.title("🤖 AI Interview Copilot")
 
-uploaded_file = st.file_uploader(
-    "Upload Resume",
-    type=["pdf", "docx"]
+st.caption(
+    "Personalized AI-powered mock interviews based on your resume."
 )
 
-if uploaded_file is not None:
 
-    files = {
-        "file": (
-            uploaded_file.name,
-            uploaded_file,
-            uploaded_file.type
-        )
-    }
+# ---------------- RESUME UPLOAD ----------------
 
-    with st.spinner("Generating Interview Questions..."):
+if not st.session_state.interview_started:
 
-        response = requests.post(
-            "http://127.0.0.1:8000/upload_resume",
-            files=files
-        )
+    uploaded_file = st.file_uploader(
+        "Upload your Resume",
+        type=["pdf", "docx"]
+    )
 
-    if response.status_code == 200:
+    if uploaded_file is not None:
 
-        data = response.json()
+        if st.button(
+            "🚀 Start Interview",
+            type="primary"
+        ):
 
-        st.success("Resume Uploaded Successfully!")
+            files = {
+                "file": (
+                    uploaded_file.name,
+                    uploaded_file,
+                    uploaded_file.type
+                )
+            }
 
-        st.subheader("📄 Extracted Resume")
+            with st.spinner(
+                "Analyzing resume and preparing your interview..."
+            ):
 
-        st.text_area(
-            "Resume",
-            data["resume_text"],
-            height=250
-        )
+                response = requests.post(
+                    f"{API_URL}/upload_resume",
+                    files=files
+                )
 
-        st.subheader("📝 Interview Questions")
+            if response.status_code == 200:
 
-        st.markdown(data["questions"])
+                data = response.json()
 
-        st.divider()
+                st.session_state.questions = data["questions"]
 
-        st.header("🎯 AI Interview Evaluation")
+                st.session_state.current_question = 0
 
-        question = st.text_input(
-            "Paste an Interview Question"
-        )
+                st.session_state.history = []
 
-        answer = st.text_area(
-            "Write Your Answer"
-        )
+                st.session_state.feedback = None
 
-        if st.button("Evaluate Answer"):
+                st.session_state.interview_started = True
 
-            if question.strip() == "" or answer.strip() == "":
-                st.warning("Please enter both question and answer.")
+                st.rerun()
 
             else:
 
-                with st.spinner("Evaluating..."):
+                st.error(
+                    "Failed to generate interview questions."
+                )
 
-                    eval_response = requests.post(
-                        "http://127.0.0.1:8000/evaluate",
+                st.write(response.text)
+
+
+# ---------------- INTERVIEW ----------------
+
+else:
+
+    questions = st.session_state.questions
+
+    current_index = st.session_state.current_question
+
+    total_questions = len(questions)
+
+    if current_index < total_questions:
+
+        current_question = questions[current_index]
+
+        progress = current_index / total_questions
+
+        st.progress(progress)
+
+        st.caption(
+            f"Question {current_index + 1} of {total_questions}"
+        )
+
+        st.subheader(
+            f"🎤 {current_question}"
+        )
+
+        answer = st.text_area(
+            "Your Answer",
+            height=180,
+            key=f"answer_{current_index}",
+            placeholder="Type your interview answer here..."
+        )
+
+        if st.button(
+            "Submit Answer",
+            type="primary"
+        ):
+
+            if not answer.strip():
+
+                st.warning(
+                    "Please write an answer before submitting."
+                )
+
+            else:
+
+                with st.spinner(
+                    "AI interviewer is evaluating your answer..."
+                ):
+
+                    response = requests.post(
+                        f"{API_URL}/evaluate",
                         json={
-                            "question": question,
+                            "question": current_question,
                             "answer": answer
                         }
                     )
 
-                if eval_response.status_code == 200:
+                if response.status_code == 200:
 
-                    feedback = eval_response.json()
+                    feedback = response.json()
 
-                    st.success("Evaluation Completed!")
+                    st.session_state.feedback = feedback
 
-                    st.metric(
-                        "⭐ Score",
-                        f"{feedback['score']}/10"
+                    st.session_state.history.append(
+                        {
+                            "question": current_question,
+                            "answer": answer,
+                            "feedback": feedback
+                        }
                     )
 
-                    st.subheader("✅ Strengths")
-
-                    for strength in feedback["strengths"]:
-                        st.success(strength)
-
-                    st.subheader("❌ Weaknesses")
-
-                    for weakness in feedback["weaknesses"]:
-                        st.error(weakness)
-
-                    st.subheader("💡 Improved Answer")
-
-                    st.info(feedback["improved_answer"])
+                    st.rerun()
 
                 else:
-                    st.error("Evaluation Failed")
+
+                    st.error(
+                        "Answer evaluation failed."
+                    )
+
+                    st.write(response.text)
+
+
+        # ---------------- FEEDBACK ----------------
+
+        if st.session_state.feedback is not None:
+
+            feedback = st.session_state.feedback
+
+            st.divider()
+
+            st.header("📊 Interview Feedback")
+
+            st.metric(
+                "⭐ Score",
+                f"{feedback['score']}/10"
+            )
+
+            st.subheader("✅ Strengths")
+
+            for strength in feedback["strengths"]:
+                st.success(strength)
+
+            st.subheader("⚠️ Areas to Improve")
+
+            for weakness in feedback["weaknesses"]:
+                st.warning(weakness)
+
+            st.subheader("💡 Improved Answer")
+
+            st.info(
+                feedback["improved_answer"]
+            )
+
+            if st.button(
+                "Next Question ➡️"
+            ):
+
+                st.session_state.current_question += 1
+
+                st.session_state.feedback = None
+
+                st.rerun()
+
+
+    # ---------------- INTERVIEW COMPLETE ----------------
 
     else:
-        st.error("Failed to upload resume.")
+
+        st.success(
+            "🎉 Interview Completed!"
+        )
+
+        st.header(
+            "📊 Interview Summary"
+        )
+
+        scores = [
+            item["feedback"]["score"]
+            for item in st.session_state.history
+        ]
+
+        if scores:
+
+            average_score = sum(scores) / len(scores)
+
+            st.metric(
+                "Overall Interview Score",
+                f"{average_score:.1f}/10"
+            )
+
+        st.write(
+            f"Questions Answered: {len(st.session_state.history)}"
+        )
+
+        if st.button(
+            "🔄 Start New Interview"
+        ):
+
+            st.session_state.clear()
+
+            st.rerun()
