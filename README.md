@@ -102,6 +102,8 @@ transcribed into editable text before evaluation.
           |                  |                   |
           v                  v                   v
        Analytics         PDF Reports       AI Prep Roadmap
+
+       ![AI Interview Copilot Architecture](assets/architecture.png)
 ```
 
 ## AI Interview Logic
