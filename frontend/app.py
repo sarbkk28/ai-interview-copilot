@@ -2,7 +2,7 @@ import requests
 import streamlit as st
 
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "http://127.0.0.1:8001"
 
 
 st.set_page_config(
@@ -37,7 +37,7 @@ def initialize_session_state():
 
 def reset_interview():
     """
-    Reset the complete interview session.
+    Reset complete interview session.
     """
 
     st.session_state.questions = []
@@ -129,23 +129,33 @@ if not st.session_state.interview_started:
 
                     st.stop()
 
+
             if response.status_code == 200:
 
                 data = response.json()
 
-                st.session_state.questions = (
-                    data["questions"]
+                questions = data.get(
+                    "questions",
+                    []
                 )
 
+                if not questions:
+
+                    st.error(
+                        "Backend returned no interview questions."
+                    )
+
+                    st.stop()
+
+
+                st.session_state.questions = questions
                 st.session_state.current_question = 0
-
                 st.session_state.history = []
-
                 st.session_state.feedback = None
-
                 st.session_state.interview_started = True
 
                 st.rerun()
+
 
             else:
 
@@ -179,15 +189,92 @@ else:
 
     if current_index < total_questions:
 
-        current_question = (
+        current_question_data = (
             questions[current_index]
         )
 
-        progress = (
-            current_index / total_questions
+
+        # IMPORTANT:
+        # Questions are dictionaries now.
+        #
+        # {
+        #     "topic": "...",
+        #     "question": "..."
+        # }
+
+
+        if not isinstance(
+            current_question_data,
+            dict
+        ):
+
+            st.error(
+                "Invalid question format received "
+                "from backend."
+            )
+
+            st.write(
+                current_question_data
+            )
+
+            st.stop()
+
+
+        current_question = (
+            current_question_data.get(
+                "question",
+                ""
+            )
         )
 
-        st.progress(progress)
+        current_topic = (
+            current_question_data.get(
+                "topic",
+                "general"
+            )
+        )
+
+
+        if not isinstance(
+            current_question,
+            str
+        ):
+
+            st.error(
+                "Question text must be a string."
+            )
+
+            st.write(
+                current_question_data
+            )
+
+            st.stop()
+
+
+        if not current_question.strip():
+
+            st.error(
+                "Question text is empty."
+            )
+
+            st.stop()
+
+
+        # --------------------------------------------------
+        # PROGRESS
+        # --------------------------------------------------
+
+
+        progress = (
+            current_index
+            / total_questions
+        )
+
+
+        st.progress(
+            progress
+        )
+
 
         st.caption(
             f"Question "
@@ -195,9 +282,21 @@ else:
             f"of {total_questions}"
         )
 
+
+        st.caption(
+            f"🎯 Interview Topic: "
+            f"{current_topic.title()}"
+        )
+
+
         st.subheader(
             f"🎤 {current_question}"
         )
+
+
+        # --------------------------------------------------
+        # ANSWER INPUT
+        # --------------------------------------------------
 
 
         answer = st.text_area(
@@ -234,7 +333,14 @@ else:
                         "before submitting."
                     )
 
+
                 else:
+
+                    evaluate_payload = {
+                        "question": current_question,
+                        "answer": answer
+                    }
+
 
                     with st.spinner(
                         "AI interviewer is "
@@ -245,12 +351,7 @@ else:
 
                             response = requests.post(
                                 f"{API_URL}/evaluate",
-                                json={
-                                    "question": (
-                                        current_question
-                                    ),
-                                    "answer": answer
-                                },
+                                json=evaluate_payload,
                                 timeout=120
                             )
 
@@ -273,17 +374,19 @@ else:
                             feedback
                         )
 
+
                         st.session_state.history.append(
                             {
-                                "question": (
-                                    current_question
-                                ),
+                                "topic": current_topic,
+                                "question": current_question,
                                 "answer": answer,
                                 "feedback": feedback
                             }
                         )
 
+
                         st.rerun()
+
 
                     else:
 
@@ -291,11 +394,13 @@ else:
                             "Answer evaluation failed."
                         )
 
-                        st.write(response.text)
+                        st.write(
+                            response.text
+                        )
 
 
         # --------------------------------------------------
-        # ANSWER FEEDBACK
+        # FEEDBACK
         # --------------------------------------------------
 
 
@@ -305,18 +410,26 @@ else:
                 st.session_state.feedback
             )
 
+
             score = float(
-                feedback["overall_score"]
+                feedback[
+                    "overall_score"
+                ]
             )
 
+
             st.divider()
+
 
             st.header(
                 "📊 Interview Feedback"
             )
 
 
-            # Overall score
+            # --------------------------------------------------
+            # OVERALL SCORE
+            # --------------------------------------------------
+
 
             st.metric(
                 "⭐ Overall Score",
@@ -324,130 +437,192 @@ else:
             )
 
 
-            # Skill-wise scores
+            # --------------------------------------------------
+            # SKILL SCORES
+            # --------------------------------------------------
 
-            col1, col2, col3, col4 = st.columns(4)
+
+            col1, col2, col3, col4 = (
+                st.columns(4)
+            )
 
 
             with col1:
 
+                technical_score = float(
+                    feedback[
+                        "technical_accuracy"
+                    ]
+                )
+
                 st.metric(
                     "🎯 Technical Accuracy",
-                    (
-                        f"{float(feedback['technical_accuracy']):.1f}"
-                        "/10"
-                    )
+                    f"{technical_score:.1f}/10"
                 )
 
 
             with col2:
 
+                communication_score = float(
+                    feedback[
+                        "communication"
+                    ]
+                )
+
                 st.metric(
                     "💬 Communication",
-                    (
-                        f"{float(feedback['communication']):.1f}"
-                        "/10"
-                    )
+                    f"{communication_score:.1f}/10"
                 )
 
 
             with col3:
 
+                depth_score = float(
+                    feedback["depth"]
+                )
+
                 st.metric(
                     "🧠 Depth",
-                    (
-                        f"{float(feedback['depth']):.1f}"
-                        "/10"
-                    )
+                    f"{depth_score:.1f}/10"
                 )
 
 
             with col4:
 
+                relevance_score = float(
+                    feedback["relevance"]
+                )
+
                 st.metric(
                     "📌 Relevance",
-                    (
-                        f"{float(feedback['relevance']):.1f}"
-                        "/10"
-                    )
+                    f"{relevance_score:.1f}/10"
                 )
 
 
-            # Adaptive difficulty message
+            # --------------------------------------------------
+            # ADAPTIVE DIFFICULTY MESSAGE
+            # --------------------------------------------------
+
 
             if score >= 8:
 
                 st.success(
                     "🔥 Strong answer! "
-                    "The next question will "
-                    "be more challenging."
+                    "The next topic will use "
+                    "a more challenging question."
                 )
+
 
             elif score <= 5:
 
                 st.warning(
-                    "📚 The next question will "
-                    "focus on strengthening "
-                    "your fundamentals."
+                    "📚 The next topic will use "
+                    "a foundational question."
                 )
+
 
             else:
 
                 st.info(
                     "👍 Good attempt. "
-                    "The interviewer will "
-                    "explore this topic further."
+                    "The next topic will use "
+                    "a medium-difficulty question."
                 )
 
 
-            # Strengths
+            # --------------------------------------------------
+            # STRENGTHS
+            # --------------------------------------------------
+
 
             st.subheader(
                 "✅ Strengths"
             )
 
-            for strength in feedback["strengths"]:
 
-                st.success(strength)
+            for strength in feedback.get(
+                "strengths",
+                []
+            ):
+
+                st.success(
+                    strength
+                )
 
 
-            # Weaknesses
+            # --------------------------------------------------
+            # WEAKNESSES
+            # --------------------------------------------------
+
 
             st.subheader(
                 "⚠️ Areas to Improve"
             )
 
-            for weakness in feedback["weaknesses"]:
 
-                st.warning(weakness)
+            for weakness in feedback.get(
+                "weaknesses",
+                []
+            ):
+
+                st.warning(
+                    weakness
+                )
 
 
-            # Topics to improve
+            # --------------------------------------------------
+            # TOPICS TO IMPROVE
+            # --------------------------------------------------
+
 
             st.subheader(
                 "📚 Topics to Improve"
             )
 
-            for topic in feedback["topics_to_improve"]:
+
+            topics_to_improve = feedback.get(
+                "topics_to_improve",
+                []
+            )
+
+
+            if topics_to_improve:
+
+                for topic in topics_to_improve:
+
+                    st.write(
+                        f"• {topic}"
+                    )
+
+
+            else:
 
                 st.write(
-                    f"• {topic}"
+                    "No specific improvement "
+                    "topics identified."
                 )
 
 
-            # Improved answer
+            # --------------------------------------------------
+            # IMPROVED ANSWER
+            # --------------------------------------------------
+
 
             st.subheader(
                 "💡 Improved Answer"
             )
 
+
             st.info(
-                feedback["improved_answer"]
+                feedback.get(
+                    "improved_answer",
+                    "No improved answer generated."
+                )
             )
 
 
             # --------------------------------------------------
-            # ADAPTIVE NEXT QUESTION
+            # NEXT QUESTION
             # --------------------------------------------------
 
 
@@ -460,6 +635,7 @@ else:
                     st.session_state.history[-1]
                 )
 
+
                 next_index = (
                     st.session_state.current_question
                     + 1
@@ -468,9 +644,70 @@ else:
 
                 if next_index < total_questions:
 
+                    next_question_data = (
+                        st.session_state.questions[
+                            next_index
+                        ]
+                    )
+
+
+                    if not isinstance(
+                        next_question_data,
+                        dict
+                    ):
+
+                        st.error(
+                            "Invalid next question format."
+                        )
+
+                        st.write(
+                            next_question_data
+                        )
+
+                        st.stop()
+
+
+                    next_topic = (
+                        next_question_data.get(
+                            "topic",
+                            "general"
+                        )
+                    )
+
+
+                    adaptive_payload = {
+                        "previous_question": (
+                            last_interview[
+                                "question"
+                            ]
+                        ),
+                        "previous_answer": (
+                            last_interview[
+                                "answer"
+                            ]
+                        ),
+                        "score": (
+                            last_interview[
+                                "feedback"
+                            ][
+                                "overall_score"
+                            ]
+                        ),
+                        "weaknesses": (
+                            last_interview[
+                                "feedback"
+                            ].get(
+                                "weaknesses",
+                                []
+                            )
+                        ),
+                        "next_topic": next_topic
+                    }
+
+
                     with st.spinner(
                         "AI interviewer is adapting "
-                        "the next question..."
+                        f"the {next_topic.title()} question..."
                     ):
 
                         try:
@@ -480,32 +717,7 @@ else:
                                     f"{API_URL}"
                                     "/adaptive_question"
                                 ),
-                                json={
-                                    "previous_question": (
-                                        last_interview[
-                                            "question"
-                                        ]
-                                    ),
-                                    "previous_answer": (
-                                        last_interview[
-                                            "answer"
-                                        ]
-                                    ),
-                                    "score": (
-                                        last_interview[
-                                            "feedback"
-                                        ][
-                                            "overall_score"
-                                        ]
-                                    ),
-                                    "weaknesses": (
-                                        last_interview[
-                                            "feedback"
-                                        ][
-                                            "weaknesses"
-                                        ]
-                                    )
-                                },
+                                json=adaptive_payload,
                                 timeout=120
                             )
 
@@ -526,15 +738,52 @@ else:
                         == 200
                     ):
 
-                        adaptive_question = (
-                            adaptive_response.json()[
-                                "question"
-                            ]
+                        adaptive_data = (
+                            adaptive_response.json()
                         )
+
+
+                        adaptive_question = (
+                            adaptive_data.get(
+                                "question",
+                                ""
+                            )
+                        )
+
+
+                        if not isinstance(
+                            adaptive_question,
+                            str
+                        ):
+
+                            st.error(
+                                "Adaptive question "
+                                "must be a string."
+                            )
+
+                            st.write(
+                                adaptive_data
+                            )
+
+                            st.stop()
+
+
+                        if not adaptive_question.strip():
+
+                            st.error(
+                                "Adaptive question "
+                                "is empty."
+                            )
+
+                            st.stop()
+
 
                         st.session_state.questions[
                             next_index
+                        ][
+                            "question"
                         ] = adaptive_question
+
 
                     else:
 
@@ -568,22 +817,44 @@ else:
             "🎉 Interview Completed!"
         )
 
+
         st.header(
             "📊 Interview Analytics Dashboard"
         )
 
 
-        history = st.session_state.history
+        history = (
+            st.session_state.history
+        )
+
+
+        if not history:
+
+            st.warning(
+                "No interview history found."
+            )
+
+            if st.button(
+                "🔄 Start New Interview"
+            ):
+
+                reset_interview()
+
+                st.rerun()
+
+            st.stop()
 
 
         # --------------------------------------------------
-        # COLLECT SCORES
+        # SCORE COLLECTION
         # --------------------------------------------------
 
 
         overall_scores = [
             float(
-                item["feedback"]["overall_score"]
+                item["feedback"][
+                    "overall_score"
+                ]
             )
             for item in history
         ]
@@ -591,7 +862,9 @@ else:
 
         technical_scores = [
             float(
-                item["feedback"]["technical_accuracy"]
+                item["feedback"][
+                    "technical_accuracy"
+                ]
             )
             for item in history
         ]
@@ -599,7 +872,9 @@ else:
 
         communication_scores = [
             float(
-                item["feedback"]["communication"]
+                item["feedback"][
+                    "communication"
+                ]
             )
             for item in history
         ]
@@ -622,7 +897,7 @@ else:
 
 
         # --------------------------------------------------
-        # CALCULATE AVERAGES
+        # AVERAGES
         # --------------------------------------------------
 
 
@@ -630,17 +905,21 @@ else:
             overall_scores
         )
 
+
         average_technical = calculate_average(
             technical_scores
         )
+
 
         average_communication = calculate_average(
             communication_scores
         )
 
+
         average_depth = calculate_average(
             depth_scores
         )
+
 
         average_relevance = calculate_average(
             relevance_scores
@@ -648,7 +927,7 @@ else:
 
 
         # --------------------------------------------------
-        # OVERALL SCORE
+        # OVERALL PERFORMANCE
         # --------------------------------------------------
 
 
@@ -656,6 +935,7 @@ else:
             "⭐ Overall Interview Score",
             f"{average_overall:.1f}/10"
         )
+
 
         st.progress(
             min(
@@ -666,7 +946,7 @@ else:
 
 
         # --------------------------------------------------
-        # SKILL ANALYTICS
+        # SKILL-WISE PERFORMANCE
         # --------------------------------------------------
 
 
@@ -735,7 +1015,52 @@ else:
 
 
         # --------------------------------------------------
-        # TOPICS TO IMPROVE
+        # TOPIC-WISE PERFORMANCE
+        # --------------------------------------------------
+
+
+        st.subheader(
+            "🧩 Topic-wise Performance"
+        )
+
+
+        for item in history:
+
+            topic = (
+                item["topic"]
+                .replace("_", " ")
+                .title()
+            )
+
+
+            topic_score = float(
+                item["feedback"][
+                    "overall_score"
+                ]
+            )
+
+
+            st.write(
+                f"**{topic}**"
+            )
+
+
+            st.progress(
+                min(
+                    topic_score / 10,
+                    1.0
+                )
+            )
+
+
+            st.caption(
+                f"Score: "
+                f"{topic_score:.1f}/10"
+            )
+
+
+        # --------------------------------------------------
+        # PRIORITY IMPROVEMENT TOPICS
         # --------------------------------------------------
 
 
@@ -745,9 +1070,10 @@ else:
         for item in history:
 
             all_topics.extend(
-                item["feedback"][
-                    "topics_to_improve"
-                ]
+                item["feedback"].get(
+                    "topics_to_improve",
+                    []
+                )
             )
 
 
@@ -757,8 +1083,11 @@ else:
         for topic in all_topics:
 
             normalized_topic = (
-                topic.strip().lower()
+                topic
+                .strip()
+                .lower()
             )
+
 
             topic_counts[
                 normalized_topic
@@ -792,6 +1121,7 @@ else:
                     f"identified {count} time(s)"
                 )
 
+
         else:
 
             st.success(
@@ -817,6 +1147,7 @@ else:
                 "Strong interview readiness."
             )
 
+
         elif average_overall >= 7:
 
             st.info(
@@ -825,13 +1156,15 @@ else:
                 "some areas to refine."
             )
 
+
         elif average_overall >= 5:
 
             st.warning(
                 "📚 Needs Improvement — "
-                "Strengthen the identified "
+                "Strengthen identified "
                 "weak topics."
             )
+
 
         else:
 
@@ -848,6 +1181,7 @@ else:
 
 
         st.divider()
+
 
         st.subheader(
             "📝 Interview History"
@@ -866,8 +1200,16 @@ else:
             )
 
 
+            topic = (
+                item["topic"]
+                .replace("_", " ")
+                .title()
+            )
+
+
             with st.expander(
-                f"Question {index} — "
+                f"Question {index} | "
+                f"{topic} | "
                 f"Score {score:.1f}/10"
             ):
 
@@ -893,8 +1235,12 @@ else:
                     "**Strengths**"
                 )
 
+
                 for strength in (
-                    item["feedback"]["strengths"]
+                    item["feedback"].get(
+                        "strengths",
+                        []
+                    )
                 ):
 
                     st.write(
@@ -906,8 +1252,12 @@ else:
                     "**Areas to Improve**"
                 )
 
+
                 for weakness in (
-                    item["feedback"]["weaknesses"]
+                    item["feedback"].get(
+                        "weaknesses",
+                        []
+                    )
                 ):
 
                     st.write(
@@ -919,15 +1269,17 @@ else:
                     "**Improved Answer**"
                 )
 
+
                 st.info(
-                    item["feedback"][
-                        "improved_answer"
-                    ]
+                    item["feedback"].get(
+                        "improved_answer",
+                        "No improved answer generated."
+                    )
                 )
 
 
         # --------------------------------------------------
-        # RESET INTERVIEW
+        # RESET
         # --------------------------------------------------
 
 
