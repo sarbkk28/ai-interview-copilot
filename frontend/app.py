@@ -1,3 +1,4 @@
+import pandas as pd
 import requests
 import streamlit as st
 
@@ -31,7 +32,9 @@ def initialize_session_state():
     }
 
     for key, value in default_values.items():
+
         if key not in st.session_state:
+
             st.session_state[key] = value
 
 
@@ -41,9 +44,13 @@ def reset_interview():
     """
 
     st.session_state.questions = []
+
     st.session_state.current_question = 0
+
     st.session_state.history = []
+
     st.session_state.feedback = None
+
     st.session_state.interview_started = False
 
 
@@ -53,6 +60,7 @@ def calculate_average(scores):
     """
 
     if not scores:
+
         return 0.0
 
     return sum(scores) / len(scores)
@@ -66,7 +74,10 @@ initialize_session_state()
 # --------------------------------------------------
 
 
-st.title("🤖 AI Interview Copilot")
+st.title(
+    "🤖 AI Interview Copilot"
+)
+
 
 st.caption(
     "Adaptive AI-powered mock interviews "
@@ -81,7 +92,10 @@ st.caption(
 
 if not st.session_state.interview_started:
 
-    st.subheader("📄 Start Your Interview")
+    st.subheader(
+        "📄 Start Your Interview"
+    )
+
 
     uploaded_file = st.file_uploader(
         "Upload your Resume",
@@ -90,6 +104,7 @@ if not st.session_state.interview_started:
             "docx"
         ]
     )
+
 
     if uploaded_file is not None:
 
@@ -106,6 +121,7 @@ if not st.session_state.interview_started:
                 )
             }
 
+
             with st.spinner(
                 "Analyzing your resume and "
                 "preparing personalized questions..."
@@ -119,13 +135,16 @@ if not st.session_state.interview_started:
                         timeout=120
                     )
 
+
                 except requests.RequestException as error:
 
                     st.error(
                         "Unable to connect to backend."
                     )
 
-                    st.write(error)
+                    st.write(
+                        error
+                    )
 
                     st.stop()
 
@@ -134,25 +153,35 @@ if not st.session_state.interview_started:
 
                 data = response.json()
 
+
                 questions = data.get(
                     "questions",
                     []
                 )
 
+
                 if not questions:
 
                     st.error(
-                        "Backend returned no interview questions."
+                        "Backend returned no "
+                        "interview questions."
                     )
 
                     st.stop()
 
 
-                st.session_state.questions = questions
+                st.session_state.questions = (
+                    questions
+                )
+
                 st.session_state.current_question = 0
+
                 st.session_state.history = []
+
                 st.session_state.feedback = None
+
                 st.session_state.interview_started = True
+
 
                 st.rerun()
 
@@ -163,7 +192,9 @@ if not st.session_state.interview_started:
                     "Failed to prepare interview."
                 )
 
-                st.write(response.text)
+                st.write(
+                    response.text
+                )
 
 
 # --------------------------------------------------
@@ -173,13 +204,19 @@ if not st.session_state.interview_started:
 
 else:
 
-    questions = st.session_state.questions
+    questions = (
+        st.session_state.questions
+    )
+
 
     current_index = (
         st.session_state.current_question
     )
 
-    total_questions = len(questions)
+
+    total_questions = len(
+        questions
+    )
 
 
     # --------------------------------------------------
@@ -194,23 +231,14 @@ else:
         )
 
 
-        # IMPORTANT:
-        # Questions are dictionaries now.
-        #
-        # {
-        #     "topic": "...",
-        #     "question": "..."
-        # }
-
-
         if not isinstance(
             current_question_data,
             dict
         ):
 
             st.error(
-                "Invalid question format received "
-                "from backend."
+                "Invalid question format "
+                "received from backend."
             )
 
             st.write(
@@ -227,6 +255,7 @@ else:
             )
         )
 
+
         current_topic = (
             current_question_data.get(
                 "topic",
@@ -241,7 +270,8 @@ else:
         ):
 
             st.error(
-                "Question text must be a string."
+                "Question text must "
+                "be a string."
             )
 
             st.write(
@@ -302,7 +332,10 @@ else:
         answer = st.text_area(
             "Your Answer",
             height=180,
-            key=f"answer_{current_index}",
+            key=(
+                f"answer_"
+                f"{current_index}"
+            ),
             placeholder=(
                 "Type your interview "
                 "answer here..."
@@ -319,7 +352,10 @@ else:
         # --------------------------------------------------
 
 
-        if st.session_state.feedback is None:
+        if (
+            st.session_state.feedback
+            is None
+        ):
 
             if st.button(
                 "Submit Answer",
@@ -337,7 +373,9 @@ else:
                 else:
 
                     evaluate_payload = {
-                        "question": current_question,
+                        "question": (
+                            current_question
+                        ),
                         "answer": answer
                     }
 
@@ -355,20 +393,29 @@ else:
                                 timeout=120
                             )
 
+
                         except requests.RequestException as error:
 
                             st.error(
                                 "Unable to evaluate answer."
                             )
 
-                            st.write(error)
+                            st.write(
+                                error
+                            )
 
                             st.stop()
 
 
-                    if response.status_code == 200:
+                    if (
+                        response.status_code
+                        == 200
+                    ):
 
-                        feedback = response.json()
+                        feedback = (
+                            response.json()
+                        )
+
 
                         st.session_state.feedback = (
                             feedback
@@ -377,8 +424,12 @@ else:
 
                         st.session_state.history.append(
                             {
-                                "topic": current_topic,
-                                "question": current_question,
+                                "topic": (
+                                    current_topic
+                                ),
+                                "question": (
+                                    current_question
+                                ),
                                 "answer": answer,
                                 "feedback": feedback
                             }
@@ -404,7 +455,10 @@ else:
         # --------------------------------------------------
 
 
-        if st.session_state.feedback is not None:
+        if (
+            st.session_state.feedback
+            is not None
+        ):
 
             feedback = (
                 st.session_state.feedback
@@ -455,6 +509,7 @@ else:
                     ]
                 )
 
+
                 st.metric(
                     "🎯 Technical Accuracy",
                     f"{technical_score:.1f}/10"
@@ -469,6 +524,7 @@ else:
                     ]
                 )
 
+
                 st.metric(
                     "💬 Communication",
                     f"{communication_score:.1f}/10"
@@ -480,6 +536,7 @@ else:
                 depth_score = float(
                     feedback["depth"]
                 )
+
 
                 st.metric(
                     "🧠 Depth",
@@ -493,6 +550,7 @@ else:
                     feedback["relevance"]
                 )
 
+
                 st.metric(
                     "📌 Relevance",
                     f"{relevance_score:.1f}/10"
@@ -500,7 +558,7 @@ else:
 
 
             # --------------------------------------------------
-            # ADAPTIVE DIFFICULTY MESSAGE
+            # ADAPTIVE MESSAGE
             # --------------------------------------------------
 
 
@@ -580,9 +638,11 @@ else:
             )
 
 
-            topics_to_improve = feedback.get(
-                "topics_to_improve",
-                []
+            topics_to_improve = (
+                feedback.get(
+                    "topics_to_improve",
+                    []
+                )
             )
 
 
@@ -616,7 +676,10 @@ else:
             st.info(
                 feedback.get(
                     "improved_answer",
-                    "No improved answer generated."
+                    (
+                        "No improved "
+                        "answer generated."
+                    )
                 )
             )
 
@@ -657,7 +720,8 @@ else:
                     ):
 
                         st.error(
-                            "Invalid next question format."
+                            "Invalid next "
+                            "question format."
                         )
 
                         st.write(
@@ -707,19 +771,23 @@ else:
 
                     with st.spinner(
                         "AI interviewer is adapting "
-                        f"the {next_topic.title()} question..."
+                        f"the {next_topic.title()} "
+                        "question..."
                     ):
 
                         try:
 
-                            adaptive_response = requests.post(
-                                (
-                                    f"{API_URL}"
-                                    "/adaptive_question"
-                                ),
-                                json=adaptive_payload,
-                                timeout=120
+                            adaptive_response = (
+                                requests.post(
+                                    (
+                                        f"{API_URL}"
+                                        "/adaptive_question"
+                                    ),
+                                    json=adaptive_payload,
+                                    timeout=120
+                                )
                             )
+
 
                         except requests.RequestException as error:
 
@@ -728,7 +796,9 @@ else:
                                 "adaptive question."
                             )
 
-                            st.write(error)
+                            st.write(
+                                error
+                            )
 
                             st.stop()
 
@@ -803,6 +873,7 @@ else:
 
                 st.session_state.feedback = None
 
+
                 st.rerun()
 
 
@@ -834,6 +905,7 @@ else:
                 "No interview history found."
             )
 
+
             if st.button(
                 "🔄 Start New Interview"
             ):
@@ -841,6 +913,7 @@ else:
                 reset_interview()
 
                 st.rerun()
+
 
             st.stop()
 
@@ -901,28 +974,38 @@ else:
         # --------------------------------------------------
 
 
-        average_overall = calculate_average(
-            overall_scores
+        average_overall = (
+            calculate_average(
+                overall_scores
+            )
         )
 
 
-        average_technical = calculate_average(
-            technical_scores
+        average_technical = (
+            calculate_average(
+                technical_scores
+            )
         )
 
 
-        average_communication = calculate_average(
-            communication_scores
+        average_communication = (
+            calculate_average(
+                communication_scores
+            )
         )
 
 
-        average_depth = calculate_average(
-            depth_scores
+        average_depth = (
+            calculate_average(
+                depth_scores
+            )
         )
 
 
-        average_relevance = calculate_average(
-            relevance_scores
+        average_relevance = (
+            calculate_average(
+                relevance_scores
+            )
         )
 
 
@@ -946,6 +1029,80 @@ else:
 
 
         # --------------------------------------------------
+        # PERFORMANCE TREND CHART
+        # --------------------------------------------------
+
+
+        st.subheader(
+            "📈 Interview Performance Trend"
+        )
+
+
+        trend_data = pd.DataFrame(
+            {
+                "Question": [
+                    f"Q{index}"
+                    for index in range(
+                        1,
+                        len(overall_scores) + 1
+                    )
+                ],
+                "Score": overall_scores
+            }
+        )
+
+
+        trend_data = trend_data.set_index(
+            "Question"
+        )
+
+
+        st.line_chart(
+            trend_data
+        )
+
+
+        # --------------------------------------------------
+        # PERFORMANCE CHANGE
+        # --------------------------------------------------
+
+
+        if len(overall_scores) >= 2:
+
+            score_change = (
+                overall_scores[-1]
+                - overall_scores[0]
+            )
+
+
+            if score_change > 0:
+
+                st.success(
+                    f"📈 Your performance improved by "
+                    f"{score_change:.1f} points "
+                    f"from Question 1 to "
+                    f"Question {len(overall_scores)}."
+                )
+
+
+            elif score_change < 0:
+
+                st.warning(
+                    f"📉 Your score decreased by "
+                    f"{abs(score_change):.1f} points "
+                    f"during the interview."
+                )
+
+
+            else:
+
+                st.info(
+                    "Your interview performance "
+                    "remained consistent."
+                )
+
+
+        # --------------------------------------------------
         # SKILL-WISE PERFORMANCE
         # --------------------------------------------------
 
@@ -955,7 +1112,9 @@ else:
         )
 
 
-        col1, col2 = st.columns(2)
+        col1, col2 = (
+            st.columns(2)
+        )
 
 
         with col1:
@@ -964,6 +1123,7 @@ else:
                 "🎯 Technical Accuracy",
                 f"{average_technical:.1f}/10"
             )
+
 
             st.progress(
                 min(
@@ -977,6 +1137,7 @@ else:
                 "🧠 Depth",
                 f"{average_depth:.1f}/10"
             )
+
 
             st.progress(
                 min(
@@ -993,6 +1154,7 @@ else:
                 f"{average_communication:.1f}/10"
             )
 
+
             st.progress(
                 min(
                     average_communication / 10,
@@ -1006,11 +1168,110 @@ else:
                 f"{average_relevance:.1f}/10"
             )
 
+
             st.progress(
                 min(
                     average_relevance / 10,
                     1.0
                 )
+            )
+
+
+        # --------------------------------------------------
+        # SKILL COMPARISON CHART
+        # --------------------------------------------------
+
+
+        st.subheader(
+            "📊 Skill Comparison"
+        )
+
+
+        skill_data = pd.DataFrame(
+            {
+                "Skill": [
+                    "Technical Accuracy",
+                    "Communication",
+                    "Depth",
+                    "Relevance"
+                ],
+                "Score": [
+                    average_technical,
+                    average_communication,
+                    average_depth,
+                    average_relevance
+                ]
+            }
+        )
+
+
+        skill_data = skill_data.set_index(
+            "Skill"
+        )
+
+
+        st.bar_chart(
+            skill_data
+        )
+
+
+        # --------------------------------------------------
+        # STRONGEST AND WEAKEST SKILL
+        # --------------------------------------------------
+
+
+        skill_scores = {
+            "Technical Accuracy": (
+                average_technical
+            ),
+            "Communication": (
+                average_communication
+            ),
+            "Depth": (
+                average_depth
+            ),
+            "Relevance": (
+                average_relevance
+            )
+        }
+
+
+        strongest_skill = max(
+            skill_scores,
+            key=skill_scores.get
+        )
+
+
+        weakest_skill = min(
+            skill_scores,
+            key=skill_scores.get
+        )
+
+
+        col1, col2 = (
+            st.columns(2)
+        )
+
+
+        with col1:
+
+            st.success(
+                f"🏆 Strongest Skill: "
+                f"{strongest_skill} "
+                f"("
+                f"{skill_scores[strongest_skill]:.1f}"
+                f"/10)"
+            )
+
+
+        with col2:
+
+            st.warning(
+                f"🎯 Focus Area: "
+                f"{weakest_skill} "
+                f"("
+                f"{skill_scores[weakest_skill]:.1f}"
+                f"/10)"
             )
 
 
@@ -1114,11 +1375,14 @@ else:
 
         if sorted_topics:
 
-            for topic, count in sorted_topics[:5]:
+            for topic, count in (
+                sorted_topics[:5]
+            ):
 
                 st.warning(
                     f"{topic.title()} — "
-                    f"identified {count} time(s)"
+                    f"identified "
+                    f"{count} time(s)"
                 )
 
 
@@ -1217,6 +1481,7 @@ else:
                     "**Question**"
                 )
 
+
                 st.write(
                     item["question"]
                 )
@@ -1225,6 +1490,7 @@ else:
                 st.markdown(
                     "**Your Answer**"
                 )
+
 
                 st.write(
                     item["answer"]
@@ -1273,7 +1539,10 @@ else:
                 st.info(
                     item["feedback"].get(
                         "improved_answer",
-                        "No improved answer generated."
+                        (
+                            "No improved "
+                            "answer generated."
+                        )
                     )
                 )
 
