@@ -3,7 +3,7 @@ import requests
 import streamlit as st
 
 
-API_URL = "http://127.0.0.1:8001"
+API_URL = "https://ai-interview-copilot-7ewz.onrender.com"
 
 
 # ==================================================
